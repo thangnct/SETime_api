@@ -14,12 +14,17 @@ validatePhone = phone => {
   var re = /(09|01|02|03|04|05|06|07|08)+([0-9]{8})\b/;
   return re.test(phone);
 };
-
-function validate(req, res, next) {
-  if (!validatePhone(req.body.phone)) {
+validateEmail = email => {
+  var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  return re.test(email);
+};
+function validateSignup(req, res, next) {
+  // console.log(req.body.phoneOrEmail)
+  // console.log(validatePhone(req.body.phoneOrEmail), validateEmail(req.body.phoneOrEmail))
+  if (!validatePhone(req.body.phoneOrEmail) && !validateEmail(req.body.phoneOrEmail)) {
     res.json({
       status: false,
-      message: "Check phone"
+      message: "Check phone or email"
     })
   } else if (req.body.fullName == "") {
     res.json({
@@ -29,36 +34,74 @@ function validate(req, res, next) {
   } else if (req.body.password == "") {
     res.json({
       status: false,
-      message: "Phone is not empty"
+      message: "Password is not empty"
     })
   } else next();
 }
-router.post("/signup", validate, function (req, res) {
-  const users = db.collection("users");
-  users.where("phone", "==", req.body.phone).get()
-    .then(snapshot => {
-      if (snapshot.empty) {
-        db.collection("users").add({
-          fullName: req.body.fullName,
-          phone: req.body.phone,
-          password: req.body.password,
-          status: false
-        })
-          .then(result => {
-            res.json({
-              status: true,
-              id: result.id
-            })
+router.post("/signup", validateSignup, function (req, res, next) {
+
+  try {
+    const users = db.collection("users");
+    if (validatePhone(req.body.phoneOrEmail)) {
+      users.where("phone", "==", req.body.phoneOrEmail).get().then(snapshot => {
+        if (!snapshot.empty) {
+          res.json({
+            status: false,
+            message: "Phone number is already in use"
           })
-      } else {
-        res.json({
+        } else {
+          db.collection("users").add({
+            fullName: req.body.fullName,
+            phone: validatePhone(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
+            password: req.body.password,
+            email: validateEmail(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
+            status: false
+          })
+            .then(result => {
+              return res.json({
+                status: true,
+                id: result.id
+              })
+            })
+        }
+      }).catch(err => {
+        return res.json({
           status: false,
-          message: "Phone number already in use"
+          err: err
         })
-      }
+      })
+    } else if (validateEmail((req.body.phoneOrEmail))) {
+      
+      users.where("email", "==", req.body.phoneOrEmail).get().then(snapshot => {
+        if (!snapshot.empty) {
+          res.json({
+            status: false,
+            message: "Email is already in use"
+          })
+        } else {
+          db.collection("users").add({
+            fullName: req.body.fullName,
+            phone: validatePhone(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
+            password: req.body.password,
+            email: validateEmail(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
+            status: false
+          })
+            .then(result => {
+              return res.json({
+                status: true,
+                id: result.id
+              })
+            })
+        }
+      })
+    } 
+  } catch (err) {
+    return res.json({
+      status: false,
+      error: err
     })
 
-
+  }
 })
 
 router.get("/", function (req, res) {
