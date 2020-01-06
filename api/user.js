@@ -1,16 +1,15 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const bcrypt = require('bcrypt');
-var admin = require("firebase-admin");
-var serviceAccount = require("../config/setime-e7775-firebase-adminsdk-3dys9-880f3b35dc.json");
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://setime-e7775.firebaseio.com"
-});
-const db = admin.firestore();
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const db = require("../middlewares/dbfirebase");
+const config = require("../config/config");
+const auth = require("../middlewares/authentication");
+// Get the `FieldValue` object
+// let FieldValue = require("firebase-admin").firestore.FieldValue;
 
 validatePhone = phone => {
-  var re = /(09|01|02|03|04|05|06|07|08)+([0-9]{8})\b/;
+  var re = /^\d{10}$/;
   return re.test(phone);
 };
 validateEmail = email => {
@@ -18,193 +17,203 @@ validateEmail = email => {
   return re.test(email);
 };
 function validateSignup(req, res, next) {
-  // console.log(req.body.phoneOrEmail)
-  // console.log(validatePhone(req.body.phoneOrEmail), validateEmail(req.body.phoneOrEmail))
-  if (!validatePhone(req.body.phoneOrEmail) && !validateEmail(req.body.phoneOrEmail)) {
+  if (
+    !validatePhone(req.body.phoneOrEmail) &&
+    !validateEmail(req.body.phoneOrEmail)
+  ) {
     res.json({
       status: false,
       message: "Check phone or email"
-    })
+    });
   } else if (req.body.fullName == "") {
     res.json({
       status: false,
       message: "Name is not empty"
-    })
+    });
   } else if (req.body.password == "") {
     res.json({
       status: false,
       message: "Password is not empty"
-    })
+    });
   } else next();
 }
 
-
-router.get("/", function (req, res) {
-  let citiesRef = db.collection('users');
-  let query = citiesRef.where('email', '==', "victordev198@gmail.com").get()
-    .then(snapshot => {
-      if (snapshot.empty) {
-        console.log('No matching documents.');
-        return;
-      }
-
-      var arr = []
-      snapshot.forEach(doc => {
-        console.log(doc.id, '=>', doc.data());
-        arr.push(doc.data());
-      });
-      console.log("Arr: ", arr)
-      res.json({
-        data: arr
-      })
-
-      // console.log("snapshot: ", snapshot)
-      // res.json({
-      //   data: snapshot
-      // })
-    })
-    .catch(err => {
-      console.log('Error getting documents', err);
-    });
-})
-
-router.post("/", function (req, res) {
-  db.collection('users').add({
-    fulName: req.body.fullName,
-    phone: req.body.phone,
-    email: req.body.email,
-    password: req.body.password
-  }).then(ref => {
-    console.log('Added document with ID: ', ref.id);
-    res.json({
-      status: true,
-      id: ref.id
-    })
+router.post("/", auth, function(req, res, next) {
+  res.json({
+    data: "ok"
   });
-})
-
-router.post("/signin", function (req, res) {
+});
+router.post("/signin", function(req, res) {
   var acc = req.body.acc;
-  console.log(acc)
+  console.log(acc);
   var phoneOrEmail = "";
   try {
     if (validatePhone(acc)) {
       phoneOrEmail = "isPhone";
     } else if (validateEmail(acc)) {
-      phoneOrEmail = "isEmail"
+      phoneOrEmail = "isEmail";
     }
     const users = db.collection("users");
     if (phoneOrEmail != "") {
+      users
+        .where(phoneOrEmail == "isPhone" ? "phone" : "email", "==", acc)
+        .get()
+        .then(async snapshot => {
+          if (!snapshot.empty) {
+            var arr = [];
+            snapshot.forEach(doc => {
+              arr.push(doc.data());
+            });
+            var user = arr[0];
 
-      users.where(phoneOrEmail == "isPhone" ? "phone" : "email", "==", acc).get().then(async snapshot => {
-        if (!snapshot.empty) {
-          var arr = [];
-          snapshot.forEach(doc => {
-            arr.push(doc.data());
-          })
-          var user = arr[0];
-          
-          const checkSignin = await bcrypt.compare(req.body.password, user.password);
-          console.log(checkSignin)
-          if(checkSignin){
+            const checkSignin = await bcrypt.compare(
+              req.body.password,
+              user.password
+            );
+
+            if (checkSignin) {
+              var token = jwt.sign({ id: user.id }, config.SECRET, {
+                expiresIn: "30 days"
+              });
+              return res.json({
+                data: {
+                  status: true,
+                  token: token
+                }
+              });
+            } else {
+              return res.json({
+                status: false,
+                message: "password wrong"
+              });
+            }
+          } else {
             return res.json({
-              status: true,
-              data: arr
-            })
-          }else{
-            return res.json({
-              status: false,
-              message: "password wrong"
-            })
+              data: {
+                status: false,
+                message: "Email or phone number has not been registered"
+              }
+            });
           }
-          
-        } else {
-          return res.json({
-            status: false,
-            message: "Email or phone number has not been registered"
-          })
-        }
-      })
-
+        });
     } else {
       return res.json({
-        status: false,
-        error: "phone or email is invalid"
-      })
+        data: {
+          status: false,
+          error: "phone or email is invalid"
+        }
+      });
     }
   } catch (err) {
-    console.log(err)
     return res.json({
-      status: false,
-      error: err
-    })
+      data: {
+        status: false,
+        error: err
+      }
+    });
   }
-})
-router.post("/signup", validateSignup, async function (req, res, next) {
-
+});
+router.post("/signup", validateSignup, async function(req, res, next) {
   try {
     const users = db.collection("users");
     if (validatePhone(req.body.phoneOrEmail)) {
-      users.where("phone", "==", req.body.phoneOrEmail).get().then(async snapshot => {
-        if (!snapshot.empty) {
-          res.json({
-            status: false,
-            message: "Phone number is already in use"
-          })
-        } else {
-          const password = await bcrypt.hash(req.body.password, 10);
-          db.collection("users").add({
-            fullName: req.body.fullName,
-            phone: validatePhone(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
-            password: password,
-            email: validateEmail(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
-            status: false
-          })
-            .then(result => {
-              return res.json({
-                status: true,
-                id: result.id
+      users
+        .where("phone", "==", req.body.phoneOrEmail)
+        .get()
+        .then(async snapshot => {
+          if (!snapshot.empty) {
+            res.json({
+              data: {
+                status: false,
+                message: "Phone number is already in use"
+              }
+            });
+          } else {
+            const password = await bcrypt.hash(req.body.password, 10);
+            db.collection("users")
+              .add({
+                fullName: req.body.fullName,
+                phone: validatePhone(req.body.phoneOrEmail)
+                  ? req.body.phoneOrEmail
+                  : null,
+                password: password,
+                email: validateEmail(req.body.phoneOrEmail)
+                  ? req.body.phoneOrEmail
+                  : null,
+                status: false
               })
-            })
-        }
-      }).catch(err => {
-        return res.json({
-          status: false,
-          err: err
+              .then(result => {
+                db.collection("users")
+                  .doc(result.id)
+                  .update({
+                    id: result.id
+                  })
+                  .then(updateIdStatus => {
+                    return res.json({
+                      data: {
+                        status: true,
+                        id: result.id
+                      }
+                    });
+                  });
+              });
+          }
         })
-      })
-    } else if (validateEmail((req.body.phoneOrEmail))) {
-
-      users.where("email", "==", req.body.phoneOrEmail).get().then(async snapshot => {
-        if (!snapshot.empty) {
-          res.json({
-            status: false,
-            message: "Email is already in use"
-          })
-        } else {
-          const password = await bcrypt.hash(req.body.password, 10);
-          db.collection("users").add({
-            fullName: req.body.fullName,
-            phone: validatePhone(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
-            password: password,
-            email: validateEmail(req.body.phoneOrEmail) ? req.body.phoneOrEmail : null,
-            status: false
-          })
-            .then(result => {
-              return res.json({
-                status: true,
-                id: result.id
+        .catch(err => {
+          return res.json({
+            data: {
+              status: false,
+              err: err
+            }
+          });
+        });
+    } else if (validateEmail(req.body.phoneOrEmail)) {
+      users
+        .where("email", "==", req.body.phoneOrEmail)
+        .get()
+        .then(async snapshot => {
+          if (!snapshot.empty) {
+            res.json({
+              data: {
+                status: false,
+                message: "Email is already in use"
+              }
+            });
+          } else {
+            const password = await bcrypt.hash(req.body.password, 10);
+            db.collection("users")
+              .add({
+                fullName: req.body.fullName,
+                phone: validatePhone(req.body.phoneOrEmail)
+                  ? req.body.phoneOrEmail
+                  : null,
+                password: password,
+                email: validateEmail(req.body.phoneOrEmail)
+                  ? req.body.phoneOrEmail
+                  : null,
+                status: false
               })
-            })
-        }
-      })
+              .then(result => {
+                db.collection("users")
+                  .doc(result.id)
+                  .update({ id: result.id })
+                  .then(updateIdStatus => {
+                    return res.json({
+                      data: {
+                        status: true,
+                        id: result.id
+                      }
+                    });
+                  });
+              });
+          }
+        });
     }
   } catch (err) {
     return res.json({
       status: false,
       error: err
-    })
-
+    });
   }
-})
+});
 module.exports = router;
