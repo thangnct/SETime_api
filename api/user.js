@@ -2,20 +2,14 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+const Role = require("../models/Role");
 const db = require("../middlewares/dbfirebase");
 const config = require("../config/config");
 const auth = require("../middlewares/authentication");
-// Get the `FieldValue` object
-// let FieldValue = require("firebase-admin").firestore.FieldValue;
+const { validateEmail, validatePhone } = require("../common/utils");
 
-validatePhone = phone => {
-  var re = /^\d{10}$/;
-  return re.test(phone);
-};
-validateEmail = email => {
-  var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-  return re.test(email);
-};
+
 function validateSignup(req, res, next) {
   if (
     !validatePhone(req.body.phoneOrEmail) &&
@@ -38,12 +32,12 @@ function validateSignup(req, res, next) {
   } else next();
 }
 
-router.post("/", auth, function(req, res, next) {
+router.post("/", auth, function (req, res, next) {
   res.json({
     data: "ok"
   });
 });
-router.post("/signin", function(req, res) {
+router.post("/signin", function (req, res) {
   var acc = req.body.acc;
   console.log(acc);
   var phoneOrEmail = "";
@@ -113,107 +107,87 @@ router.post("/signin", function(req, res) {
     });
   }
 });
-router.post("/signup", validateSignup, async function(req, res, next) {
+
+router.post("/activeAccount", async (req, res) => {
   try {
-    const users = db.collection("users");
-    if (validatePhone(req.body.phoneOrEmail)) {
-      users
-        .where("phone", "==", req.body.phoneOrEmail)
-        .get()
-        .then(async snapshot => {
-          if (!snapshot.empty) {
-            res.json({
-              data: {
-                status: false,
-                message: "Phone number is already in use"
-              }
-            });
-          } else {
-            const password = await bcrypt.hash(req.body.password, 10);
-            db.collection("users")
-              .add({
-                fullName: req.body.fullName,
-                phone: validatePhone(req.body.phoneOrEmail)
-                  ? req.body.phoneOrEmail
-                  : null,
-                password: password,
-                email: validateEmail(req.body.phoneOrEmail)
-                  ? req.body.phoneOrEmail
-                  : null,
-                status: false
-              })
-              .then(result => {
-                db.collection("users")
-                  .doc(result.id)
-                  .update({
-                    id: result.id
-                  })
-                  .then(updateIdStatus => {
-                    return res.json({
-                      data: {
-                        status: true,
-                        id: result.id
-                      }
-                    });
-                  });
-              });
+    var account = req.body.account;
+    if (account) {
+      var acc = await User.findById(req.body.userId);
+      if (acc.phone == account || acc.email === account) {
+        acc.accountStatus = "active";
+        await acc.save();
+        res.json({
+          data: {
+            status: true,
+            message: "Active account success.",
           }
         })
-        .catch(err => {
-          return res.json({
-            data: {
-              status: false,
-              err: err
-            }
-          });
-        });
-    } else if (validateEmail(req.body.phoneOrEmail)) {
-      users
-        .where("email", "==", req.body.phoneOrEmail)
-        .get()
-        .then(async snapshot => {
-          if (!snapshot.empty) {
-            res.json({
-              data: {
-                status: false,
-                message: "Email is already in use"
-              }
-            });
-          } else {
-            const password = await bcrypt.hash(req.body.password, 10);
-            db.collection("users")
-              .add({
-                fullName: req.body.fullName,
-                phone: validatePhone(req.body.phoneOrEmail)
-                  ? req.body.phoneOrEmail
-                  : null,
-                password: password,
-                email: validateEmail(req.body.phoneOrEmail)
-                  ? req.body.phoneOrEmail
-                  : null,
-                status: false
-              })
-              .then(result => {
-                db.collection("users")
-                  .doc(result.id)
-                  .update({ id: result.id })
-                  .then(updateIdStatus => {
-                    return res.json({
-                      data: {
-                        status: true,
-                        id: result.id
-                      }
-                    });
-                  });
-              });
+      } else {
+        res.json({
+          data: {
+            status: false,
+            message: "Phone or email is not has been register."
           }
-        });
+        })
+      }
+    } else {
+      res.json({
+        data: {
+          status: false,
+          message: "bad request"
+        }
+      })
     }
   } catch (err) {
-    return res.json({
-      status: false,
-      error: err
-    });
+    res.json({
+      data: {
+        status: false,
+        error: err
+      }
+    })
+  }
+
+})
+router.post("/signup", validateSignup, async function (req, res, next) {
+  try {
+    const checkExists = await User.findOne({ $or: [{ "phone": req.body.phoneOrEmail }, { "email": req.body.phoneOrEmail }] });
+    if (checkExists) {
+      res.json({
+        data: {
+          status: false,
+          message: "Phone or email is has been used."
+        }
+      })
+    } else {
+      var password = await bcrypt.hash(req.body.phoneOrEmail, 10);
+      var userRole = await Role.findOne({ name: "user" });
+      const acc = new User({
+        fullName: req.body.fullName,
+        phone: validatePhone(req.body.phoneOrEmail) ? req.body.phoneOrEmail : "",
+        email: validateEmail(req.body.phoneOrEmail) ? req.body.phoneOrEmail : "",
+        password: password,
+        role: userRole._id,
+        accountStatus: "disable"
+      });
+      acc.save().then(result => {
+        res.json({
+          data: {
+            status: true,
+            message: "Signin success.",
+            userId: result._id
+          }
+        })
+      }).catch(err => {
+        res.json({
+          data: {
+            status: false,
+            error: err
+          }
+        })
+      });
+    }
+  } catch (err) {
+
   }
 });
 module.exports = router;
