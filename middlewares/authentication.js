@@ -11,6 +11,7 @@ userAuth = async (req, res, next) => {
     const token = req.body.token;
     if (token) {
       jwt.verify(token, config.SECRET, async (err, decode) => {
+        console.log("?")
         if (err) {
           res.json({
             data: {
@@ -19,7 +20,7 @@ userAuth = async (req, res, next) => {
             }
           })
         } else {
-          let userId = decode.id;
+          let userId = decode.userId;
           let acc = await User.findById(userId);
           if (acc) {
             if (acc.timePassChange == decode.timePassChange) {
@@ -32,6 +33,8 @@ userAuth = async (req, res, next) => {
                 }
               })
             }
+          } else {
+            res.json({ data: { code: 0, message: "Access denied." } })
           }
         }
       })
@@ -67,7 +70,7 @@ adminAuth = async (req, res, next) => {
             }
           })
         } else {
-          let userId = decode.id;
+          let userId = decode.userId;
           let acc = await User.findById(userId);
           if (acc) {
             let checkAdmin = await Role.findOne({ name: "admin" });

@@ -46,7 +46,7 @@ router.post("/signin", async (req, res) => {
         let checkPassword = await bcrypt.compare(body.password, acc.password)
         console.log(checkPassword);
         if (checkPassword) {
-          let info = { id: acc.id, role: acc.role, timePassChange: acc.timePassChange }
+          let info = { userId: acc.id, role: acc.role, timePassChange: acc.timePassChange }
           let token = jwt.sign(info, config.SECRET, {
             expiresIn: "60 days"
           });
