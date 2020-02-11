@@ -18,6 +18,6 @@ const taskSchema = mongoose.Schema({
     notification: Number,
     note: String,
     //reasonDone: String 
-});
+},{timestamps: true});
 
 module.exports = mongoose.model("Task", taskSchema);

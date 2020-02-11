@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require("../models/User");
 const Role = require("../models/Role");
 const config = require("../config/config");
+const bcrypt = require("bcrypt");
 
 router.post("/", async (req, res) => {
     try {
@@ -23,16 +24,15 @@ router.post("/", async (req, res) => {
                         console.log("Error :((")
                     } else {
                         var roleAdmin = await Role.findOne({ name: "admin" });
-                        console.log("đâsd", roleAdmin);
+
                         if (roleAdmin) {
                             const admin = config.admin;
                             var acc = new User(admin);
                             acc.role = roleAdmin._id;
-                            console.log("role admin: ", acc)
-                            let result = await acc.save();
-                            if (result) {
-                                console.log("result: ", result);
-                            }
+                            acc.password = await bcrypt.hash(config.admin.password, 10);
+                            acc.timePassChange = Date.now() / 1000 | 0;
+                            await acc.save();
+
                         }
 
                         var roleUser = await Role.findOne({ name: "user" });
@@ -40,6 +40,8 @@ router.post("/", async (req, res) => {
                             const user = config.user;
                             let acc = new User(user);
                             acc.role = roleUser._id;
+                            acc.password = await bcrypt.hash(config.user.password, 10);
+                            acc.timePassChange = Date.now() / 1000 | 0;
                             await acc.save();
                         }
                         res.json({

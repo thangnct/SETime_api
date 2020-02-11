@@ -4,11 +4,11 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Role = require("../models/Role");
-const db = require("../middlewares/dbfirebase");
+const db = require("../common/dbfirebase");
 const config = require("../config/config");
-const auth = require("../middlewares/authentication");
+const { userAuth, adminAuth, checkTokenFirebase } = require("../middlewares/authentication");
 const { validateEmail, validatePhone } = require("../common/utils");
-
+var admin = require("firebase-admin");
 
 function validateSignup(req, res, next) {
   if (
@@ -32,80 +32,67 @@ function validateSignup(req, res, next) {
   } else next();
 }
 
-router.post("/", auth, function (req, res, next) {
+router.post("/auth", adminAuth, function (req, res, next) {
   res.json({
-    data: "ok"
-  });
+    message: "next"
+  })
 });
-router.post("/signin", function (req, res) {
-  var acc = req.body.acc;
-  console.log(acc);
-  var phoneOrEmail = "";
+router.post("/signin", async (req, res) => {
   try {
-    if (validatePhone(acc)) {
-      phoneOrEmail = "isPhone";
-    } else if (validateEmail(acc)) {
-      phoneOrEmail = "isEmail";
-    }
-    const users = db.collection("users");
-    if (phoneOrEmail != "") {
-      users
-        .where(phoneOrEmail == "isPhone" ? "phone" : "email", "==", acc)
-        .get()
-        .then(async snapshot => {
-          if (!snapshot.empty) {
-            var arr = [];
-            snapshot.forEach(doc => {
-              arr.push(doc.data());
-            });
-            var user = arr[0];
-
-            const checkSignin = await bcrypt.compare(
-              req.body.password,
-              user.password
-            );
-
-            if (checkSignin) {
-              var token = jwt.sign({ id: user.id }, config.SECRET, {
-                expiresIn: "30 days"
-              });
-              return res.json({
-                data: {
-                  status: true,
-                  token: token
-                }
-              });
-            } else {
-              return res.json({
-                status: false,
-                message: "password wrong"
-              });
+    const body = req.body;
+    if (body.account && body.password) {
+      const acc = await User.findOne({ $or: [{ phone: body.account }, { email: body.account }] });
+      if (acc) {
+        let checkPassword = await bcrypt.compare(body.password, acc.password)
+        console.log(checkPassword);
+        if (checkPassword) {
+          let info = { id: acc.id, role: acc.role, timePassChange: acc.timePassChange }
+          let token = jwt.sign(info, config.SECRET, {
+            expiresIn: "60 days"
+          });
+          res.json({
+            data: {
+              code: 1,
+              token
             }
-          } else {
-            return res.json({
-              data: {
-                status: false,
-                message: "Email or phone number has not been registered"
-              }
-            });
+          })
+        } else {
+          res.json({
+            data: {
+              code: 0,
+              message: "Password wrong."
+            }
+          })
+        }
+      } else {
+        res.json({
+          data: {
+            status: false,
+            code: -1,
+            error: "Phone or email is not register."
           }
-        });
+        })
+      }
     } else {
-      return res.json({
+      res.json({
         data: {
           status: false,
-          error: "phone or email is invalid"
+          code: -2,
+          error: "Bad request."
         }
-      });
+      })
     }
   } catch (err) {
-    return res.json({
+    console.log(err)
+    res.json({
       data: {
         status: false,
+        code: -99,
         error: err
       }
-    });
+    })
   }
+
 });
 
 router.post("/activeAccount", async (req, res) => {
@@ -113,20 +100,50 @@ router.post("/activeAccount", async (req, res) => {
     var account = req.body.account;
     if (account) {
       var acc = await User.findById(req.body.userId);
-      if (acc.phone == account || acc.email === account) {
-        acc.accountStatus = "active";
-        await acc.save();
-        res.json({
-          data: {
-            status: true,
-            message: "Active account success.",
-          }
-        })
-      } else {
+      if (acc) {
+        if (acc.phone == account || acc.email === account) {
+          admin.auth().verifyIdToken(req.body.idToken)
+            .then(async function (decodedToken) {
+              let uid = decodedToken.uid;
+              if (uid) {
+                acc.accountStatus = "active";
+                let result = await acc.save();
+                if (result) {
+                  res.json({
+                    data: {
+                      status: true,
+                      message: "Active account success.",
+                    }
+                  })
+                }
+              }
+            }).catch(async function (error) {
+              let result = await acc.remove();
+              if (result) {
+                res.json({
+                  data: {
+                    status: false,
+                    code: -1,
+                    message: "Invalid token",
+                    error: error
+                  }
+                })
+              }
+            });
+        } else {
+          res.json({
+            data: {
+              status: false,
+              message: "Phone or email is not has been register"
+            }
+          })
+        }
+      }
+      else {
         res.json({
           data: {
             status: false,
-            message: "Phone or email is not has been register."
+            message: "User is invalid."
           }
         })
       }
@@ -139,6 +156,7 @@ router.post("/activeAccount", async (req, res) => {
       })
     }
   } catch (err) {
+    console.log(err)
     res.json({
       data: {
         status: false,
@@ -159,7 +177,7 @@ router.post("/signup", validateSignup, async function (req, res, next) {
         }
       })
     } else {
-      var password = await bcrypt.hash(req.body.phoneOrEmail, 10);
+      var password = await bcrypt.hash(req.body.password, 10);
       var userRole = await Role.findOne({ name: "user" });
       const acc = new User({
         fullName: req.body.fullName,
@@ -167,7 +185,8 @@ router.post("/signup", validateSignup, async function (req, res, next) {
         email: validateEmail(req.body.phoneOrEmail) ? req.body.phoneOrEmail : "",
         password: password,
         role: userRole._id,
-        accountStatus: "disable"
+        accountStatus: "disable",
+        timePassChange: new Date.now() / 1000 | 0
       });
       acc.save().then(result => {
         res.json({

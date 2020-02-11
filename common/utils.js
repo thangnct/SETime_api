@@ -10,16 +10,6 @@ validateEmail = email => {
     return re.test(email);
 };
 
-authFirebaseToken = idToken => {
-    // idToken comes from the client app
-    admin.auth().verifyIdToken(idToken)
-        .then(function (decodedToken) {
-            let uid = decodedToken.uid;
-            // ...
-        }).catch(function (error) {
-            // Handle error
-        });
-}
 module.exports = {
     validateEmail,
     validatePhone

@@ -9,6 +9,6 @@ const notificationSchema = mongoose.Schema({
     title: String,
     content: String,
     img: String
-});
+},{timestamps: true});
 
 module.exports = mongoose.model("Notification", notificationSchema);

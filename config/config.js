@@ -7,14 +7,14 @@ module.exports ={
         fullName: "Admin",
         phone: "0123456789",
         email: "mail@admin.com",
-        password: "Tkangg@3",
+        password: "123456",
         accountStatus: "active",
     },
     user: {
         fullName: "Nguyen Cong Thang",
         phone: "0337896198",
         email: "ncthang198@gmail.com",
-        password: "Tkangg@3",
+        password: "123456",
         accountStatus: "active",
     }
 }                   

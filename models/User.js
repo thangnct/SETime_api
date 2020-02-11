@@ -18,7 +18,8 @@ const userSchema = new mongoose.Schema({
     tasks: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Task"
-    }]
-});
+    }],
+    timePassChange: Number
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
