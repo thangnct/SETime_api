@@ -4,20 +4,32 @@ const taskSchema = mongoose.Schema({
 
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User"
+        ref: "User",
+        required: true
     },
     goalId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Goal"
+        ref: "Goal",
+        required: true
     },
-    taskTitle: String,
-    taskStatus: String, //working_on - completed - out_of_date - pendig
-    priorityLevel: Number,
-    timeBound: String,
-    location: String,
-    notification: Number,
+    taskTitle: {
+        type: String,
+        required: true
+    },
+    taskStatus: {
+        type: String,
+        required: true
+    },
+    timeBound: {
+        isAllDay: Boolean,
+        startTime: String,
+        endTime: String,
+    },
+    color: String,
+    // location: String,
+    // notification: Number,
     note: String,
     //reasonDone: String 
-},{timestamps: true});
+}, { timestamps: true });
 
 module.exports = mongoose.model("Task", taskSchema);

@@ -186,7 +186,7 @@ router.post("/signup", validateSignup, async function (req, res, next) {
         password: password,
         role: userRole._id,
         accountStatus: "disable",
-        timePassChange: new Date.now() / 1000 | 0
+        timePassChange: Date.now() / 1000 | 0
       });
       acc.save().then(result => {
         res.json({
@@ -206,7 +206,8 @@ router.post("/signup", validateSignup, async function (req, res, next) {
       });
     }
   } catch (err) {
-
+    console.log(err)
+    res.json({ data: { code: -99, error: err } })
   }
 });
 module.exports = router;

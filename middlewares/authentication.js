@@ -11,19 +11,18 @@ userAuth = async (req, res, next) => {
     const token = req.body.token;
     if (token) {
       jwt.verify(token, config.SECRET, async (err, decode) => {
-        console.log("?")
         if (err) {
           res.json({
             data: {
               code: 0,
-              message: "Token is invalid."
+              message: "Access denied."
             }
           })
         } else {
           let userId = decode.userId;
           let acc = await User.findById(userId);
           if (acc) {
-            if (acc.timePassChange == decode.timePassChange) {
+            if (acc.timePassChange == decode.timePassChange && acc.accountStatus == "active") {
               next();
             } else {
               res.json({
@@ -42,7 +41,7 @@ userAuth = async (req, res, next) => {
       return res.json({
         data: {
           status: false,
-          message: "token is empty"
+          message: "Access denied."
         }
       });
     }
@@ -66,7 +65,7 @@ adminAuth = async (req, res, next) => {
           res.json({
             data: {
               code: 0,
-              message: "Token is invalid."
+              message: "Access denied."
             }
           })
         } else {
@@ -92,7 +91,7 @@ adminAuth = async (req, res, next) => {
       return res.json({
         data: {
           status: false,
-          message: "token is empty"
+          message: "Access denied."
         }
       });
     }
