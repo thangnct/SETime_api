@@ -43,29 +43,6 @@ router.post("/get_goal_by_id", userAuth, async (req, res, next) => {
     } catch (error) { res.json({ data: { code: -99, error } }) }
 })
 
-router.post("/add_task", userAuth, async (req, res) => {
-    try {
-        const token = req.body.token;
-        jwt.verify(token, config.SECRET, async (err, decode) => {
-            if (err) {
-                res.json({ data: { code: -98, err } })
-            }
-            
-            const userId = decode.userId;
-            var task = new Task({
-                userId: userId,
-                goalId: req.body.goalId,
-                taskTitle: req.body.taskTitle,
-                taskStatus: req.body.taskStatus, //working_on - completed
-                timeBound: req.body.timeBound,
-                note: req.body.note,
-            })
-            task.save().then(value => {
-                res.json({ data: { code: 1, task: value._id } })
-            }).catch(error => { res.json({ data: { code: -98, error } }) })
-        })
-    } catch (error) { res.json({ data: { code: -99, error } }) }
-})
 
 router.post("/add_goal", userAuth, async (req, res) => {
     try {
@@ -74,20 +51,35 @@ router.post("/add_goal", userAuth, async (req, res) => {
             if (err) {
                 res.json({ data: { code: -98, err } })
             }
+            // const tasks = req.body.tasks;
+            const tasks = [
+                {
+                    taskTitle: "task1",
+                    taskStatus: "working_on",
+                    timeBound: "",
+                    note: "",
+                },
+                {
+                    taskTitle: "task2",
+                    taskStatus: "working_on",
+                    timeBound: "",
+                    note: "",
+                }
+            ];
 
+            
             const userId = decode.userId;
             var goal = new Goal({
                 userId: userId,
                 goalTitle: req.body.goalTitle,
                 exprirationDate: req.body.exprirationDate,
-                color: req.body.color,
+                color: req.body.color || "blue",
                 describe: req.body.describe,
                 reward: req.body.reward,
-                goalStatus: req.body.goalStatus, //working_on - completed - out_of_date - pendig.
-                // tasks: req.body.tasks
+                goalStatus: "working_on",
             });
-            await goal.save().then(goal => {
-                res.json({ data: { code: 1, goal } })
+            goal.save().then(goal => {
+                
             }).catch(err => {
                 res.json({ data: { code: -98, err } })
             })

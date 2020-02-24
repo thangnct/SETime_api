@@ -101,7 +101,7 @@ router.post("/delete_task", userAuth, async (req, res) => {
     } catch (error) { res.json({ data: { code: -99, error } }) }
 });
 
-router.post("/get_all_task", async (req, res) => {
+router.post("/get_all_task", userAuth, async (req, res) => {
     try {
         const token = req.body.token;
         jwt.verify(token, config.SECRET, async (err, decode) => {
@@ -110,6 +110,25 @@ router.post("/get_all_task", async (req, res) => {
             }
             const userId = decode.userId;
             var tasks = await Task.find({ userId: userId });
+            res.json({ data: { code: 1, tasks } })
+        })
+    } catch (error) { res.json({ data: { code: -99, error } }) }
+})
+
+router.post("/get_task_in_day", userAuth, async (req, res) => {
+    try {
+        const token = req.body.token;
+        jwt.verify(token, config.SECRET, async (err, decode) => {
+            if (err) {
+                res.json({ data: { code: -98, err } })
+            }
+            const userId = decode.userId;
+            const today = new Date();
+            
+            var day = today.getDate();
+            var day2 = today.getDay();
+            console.log(today, day, day2)
+            var tasks = await Task.find({ $and: [{ userId: userId }, { updatedAt: today }] });
             res.json({ data: { code: 1, tasks } })
         })
     } catch (error) { res.json({ data: { code: -99, error } }) }
@@ -155,7 +174,7 @@ router.post("/get_task_by_id", async (req, res) => {
             const taskId = req.body.taskId;
             if (taskId && userId) {
                 let task = await Task.findById(taskId);
-                console.log(task.userId,userId)
+                console.log(task.userId, userId)
                 if (task && task.userId == userId) {
                     res.json({
                         data: { code: 1, task }

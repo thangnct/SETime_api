@@ -38,6 +38,7 @@ router.post("/auth", adminAuth, function (req, res, next) {
   })
 });
 router.post("/signin", async (req, res) => {
+  console.log("hahihdwi: ", req.body)
   try {
     const body = req.body;
     if (body.account && body.password) {
@@ -53,7 +54,8 @@ router.post("/signin", async (req, res) => {
           res.json({
             data: {
               code: 1,
-              token
+              token,
+              message: "Login success."
             }
           })
         } else {
@@ -67,18 +69,16 @@ router.post("/signin", async (req, res) => {
       } else {
         res.json({
           data: {
-            status: false,
             code: -1,
-            error: "Phone or email is not register."
+            message: "Phone or email is not register."
           }
         })
       }
     } else {
       res.json({
         data: {
-          status: false,
           code: -2,
-          error: "Bad request."
+          message: "You must enter account and password."
         }
       })
     }
