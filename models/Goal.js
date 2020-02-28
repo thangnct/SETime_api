@@ -6,7 +6,9 @@ const goalSchema = mongoose.Schema({
         ref: "User"
     },
     goalTitle: String,
-    exprirationDate: String,
+    // exprirationDate: String,
+    startTime: String,
+    endTime: String,
     color: String,
     describe: String,
     reward: String,

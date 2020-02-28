@@ -20,11 +20,9 @@ const taskSchema = mongoose.Schema({
         type: String,
         required: true
     },
-    timeBound: {
-        isAllDay: Boolean,
-        startTime: String,
-        endTime: String,
-    },
+    isAllDay: Boolean,
+    startTime: String,
+    endTime: String,
     color: String,
     // location: String,
     // notification: Number,

@@ -67,19 +67,20 @@ router.post("/add_goal", userAuth, async (req, res) => {
                 }
             ];
 
-            
+
             const userId = decode.userId;
             var goal = new Goal({
                 userId: userId,
                 goalTitle: req.body.goalTitle,
-                exprirationDate: req.body.exprirationDate,
+                startTime: req.body.startTime,
+                endTime: req.body.endTime,
                 color: req.body.color || "blue",
                 describe: req.body.describe,
                 reward: req.body.reward,
                 goalStatus: "working_on",
             });
             goal.save().then(goal => {
-                
+                res.json({ data: { code: 1, goal } })
             }).catch(err => {
                 res.json({ data: { code: -98, err } })
             })

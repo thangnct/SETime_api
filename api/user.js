@@ -11,9 +11,9 @@ const { validateEmail, validatePhone } = require("../common/utils");
 var admin = require("firebase-admin");
 
 function validateSignup(req, res, next) {
+  // console.log(req.body)
   if (
-    !validatePhone(req.body.phoneOrEmail) &&
-    !validateEmail(req.body.phoneOrEmail)
+    !validatePhone(req.body.phoneOrEmail) && !validateEmail(req.body.phoneOrEmail)
   ) {
     res.json({
       status: false,
@@ -38,7 +38,6 @@ router.post("/auth", adminAuth, function (req, res, next) {
   })
 });
 router.post("/signin", async (req, res) => {
-  console.log("hahihdwi: ", req.body)
   try {
     const body = req.body;
     if (body.account && body.password) {
@@ -167,6 +166,7 @@ router.post("/activeAccount", async (req, res) => {
 
 })
 router.post("/signup", validateSignup, async function (req, res, next) {
+
   try {
     const checkExists = await User.findOne({ $or: [{ "phone": req.body.phoneOrEmail }, { "email": req.body.phoneOrEmail }] });
     if (checkExists) {
@@ -191,15 +191,15 @@ router.post("/signup", validateSignup, async function (req, res, next) {
       acc.save().then(result => {
         res.json({
           data: {
-            status: true,
-            message: "Signin success.",
+            code: 1,
+            message: "Signup success.",
             userId: result._id
           }
         })
       }).catch(err => {
         res.json({
           data: {
-            status: false,
+            code: -99,
             error: err
           }
         })

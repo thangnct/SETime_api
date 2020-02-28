@@ -24,7 +24,9 @@ router.post("/add_task", userAuth, async (req, res) => {
                             goalId,
                             taskTitle: req.body.taskTitle,
                             taskStatus: "working_on",
-                            timeBound: req.body.timeBound,
+                            isAllDay: req.body.isAllDay,
+                            startTime: req.body.startTime,
+                            endTime: req.body.endTime,
                             color: req.body.color,
                             note: req.body.note,
                         })
@@ -124,7 +126,7 @@ router.post("/get_task_in_day", userAuth, async (req, res) => {
             }
             const userId = decode.userId;
             const today = new Date();
-            
+
             var day = today.getDate();
             var day2 = today.getDay();
             console.log(today, day, day2)
