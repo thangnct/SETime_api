@@ -15,20 +15,11 @@ function validateSignup(req, res, next) {
   if (
     !validatePhone(req.body.phoneOrEmail) && !validateEmail(req.body.phoneOrEmail)
   ) {
-    res.json({
-      status: false,
-      message: "Check phone or email"
-    });
+    res.json({ data: { code: -1, message: "Check phone or email" } });
   } else if (req.body.fullName == "") {
-    res.json({
-      status: false,
-      message: "Name is not empty"
-    });
+    res.json({ data: { code: -1, message: "Name is empty" } });
   } else if (req.body.password == "") {
-    res.json({
-      status: false,
-      message: "Password is not empty"
-    });
+    res.json({ data: { code: -1, message: "Password is empty" } });
   } else next();
 }
 
@@ -36,6 +27,24 @@ router.post("/auth", adminAuth, function (req, res, next) {
   res.json({
     message: "next"
   })
+});
+router.post("/check_account_exists", async (req, res) => {
+  try {
+    const body = req.body;
+    if (body.account) {
+      const acc = await User.findOne({ $or: [{ phone: body.account }, { email: body.account }] });
+      if (acc) {
+        res.json({ data: { code: 1, message: "Account is has been used." } })
+      } else {
+        res.json({ data: { code: 0, message: "Account don't exists." } })
+      }
+    } else {
+      res.json({ data: { code: -2, message: "Bad request" } })
+    }
+  } catch (error) {
+    res.json({ data: { code: -99, error } })
+  }
+
 });
 router.post("/signin", async (req, res) => {
   try {
@@ -85,7 +94,6 @@ router.post("/signin", async (req, res) => {
     console.log(err)
     res.json({
       data: {
-        status: false,
         code: -99,
         error: err
       }
@@ -121,7 +129,6 @@ router.post("/activeAccount", async (req, res) => {
               if (result) {
                 res.json({
                   data: {
-                    status: false,
                     code: -1,
                     message: "Invalid token",
                     error: error
@@ -132,7 +139,7 @@ router.post("/activeAccount", async (req, res) => {
         } else {
           res.json({
             data: {
-              status: false,
+              code: 0,
               message: "Phone or email is not has been register"
             }
           })
@@ -141,7 +148,7 @@ router.post("/activeAccount", async (req, res) => {
       else {
         res.json({
           data: {
-            status: false,
+            code: 0,
             message: "User is invalid."
           }
         })
@@ -149,7 +156,7 @@ router.post("/activeAccount", async (req, res) => {
     } else {
       res.json({
         data: {
-          status: false,
+          code: -98,
           message: "bad request"
         }
       })
@@ -158,7 +165,7 @@ router.post("/activeAccount", async (req, res) => {
     console.log(err)
     res.json({
       data: {
-        status: false,
+        code: -99,
         error: err
       }
     })
@@ -172,7 +179,7 @@ router.post("/signup", validateSignup, async function (req, res, next) {
     if (checkExists) {
       res.json({
         data: {
-          status: false,
+          code: -2,
           message: "Phone or email is has been used."
         }
       })
@@ -185,7 +192,7 @@ router.post("/signup", validateSignup, async function (req, res, next) {
         email: validateEmail(req.body.phoneOrEmail) ? req.body.phoneOrEmail : "",
         password: password,
         role: userRole._id,
-        accountStatus: "disable",
+        accountStatus: "active",
         timePassChange: Date.now() / 1000 | 0
       });
       acc.save().then(result => {
