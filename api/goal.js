@@ -20,6 +20,39 @@ router.post("/get_all_goal", adminAuth, async (req, res, next) => {
     } catch (error) { res.json({ data: { code: -99, error } }) }
 })
 
+router.post("/get_goal", userAuth, async (req, res, next) => {
+    // setTimeout(async () => {
+    try {
+        const token = req.body.token;
+        jwt.verify(token, config.SECRET, async (err, decode) => {
+            if (err) {
+                res.json({ data: { code: -98, err } })
+            }
+            const body = req.body;
+            var goals = null;
+            switch (body.type) {
+                case "working_on":
+                    goals = await Goal.find({ $and: [{ goalStatus: "working_on" }, { userId: decode.userId }] });
+                    break;
+                case "completed":
+                    goals = await Goal.find({ $and: [{ goalStatus: "completed" }, { userId: decode.userId }] });
+                    break;
+                case "in_month":
+                    var month =
+                        goals = await Goal.find({ goalStatus: "working_on" });
+                    break;
+                default:
+            }
+
+            if (goals) {
+                res.json({ data: { code: 1, goals } })
+            }
+        })
+
+    } catch (error) { res.json({ data: { code: -99, error } }) }
+    // }, 2000)
+
+})
 
 router.post("/get_goal_by_id", userAuth, async (req, res, next) => {
     try {
@@ -80,7 +113,7 @@ router.post("/add_goal", userAuth, async (req, res) => {
                 goalStatus: "working_on",
             });
             goal.save().then(goal => {
-                res.json({ data: { code: 1, goal } })
+                res.json({ data: { code: 1, goal, message: "Add goal success." } })
             }).catch(err => {
                 res.json({ data: { code: -98, err } })
             })

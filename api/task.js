@@ -7,6 +7,7 @@ const Task = require("../models/Task")
 const jwt = require("jsonwebtoken");
 
 router.post("/add_task", userAuth, async (req, res) => {
+    console.log(req.body)
     try {
         const token = req.body.token;
         jwt.verify(token, config.SECRET, async (err, decode) => {
@@ -27,21 +28,21 @@ router.post("/add_task", userAuth, async (req, res) => {
                             isAllDay: req.body.isAllDay,
                             startTime: req.body.startTime,
                             endTime: req.body.endTime,
-                            color: req.body.color,
+                            color: goal.color,
                             note: req.body.note,
                         })
                         task.save().then(value => {
-                            res.json({ data: { code: 1, task: value._id } })
+                            res.json({ data: { code: 1, task: value._id, message: "Add tasl success." } })
                         }).catch(error => { res.json({ data: { code: -98, error } }) })
                     } else {
-                        res.json({ data: { code: 0, message: "Fail to add task" } })
+                        res.json({ data: { code: 0, message: "Fail to add task." } })
                     }
                 } else {
                     res.json({ data: { code: 0, message: "The task must towards a goal." } })
                 }
 
             } else {
-                res.json({ data: { code: 0, message: "Fail to add task" } })
+                res.json({ data: { code: 0, message: "Fail to add task." } })
             }
         })
     } catch (error) { res.json({ data: { code: -99, error } }) }
